@@ -40,47 +40,56 @@ SCSFExport scsf_HorizontalChartCalculator(SCStudyInterfaceRef sc) {
     int &endIndex = sc.GetPersistentInt(1);
     int &toolLineNumber = sc.GetPersistentInt(2);
 
-	if(sc.SetDefaults) {
-		sc.GraphName = "Horizontal Chart Calculator";
+    if(sc.SetDefaults) {
+        sc.GraphName = "Horizontal Chart Calculator";
         sc.StudyDescription = "Displays a horizontal line at the given price, and the offset from that price to the current price";
-		sc.AutoLoop = 1;
+        sc.AutoLoop = 1;
         sc.GraphRegion = 0;
         sc.UpdateAlways = 1;
-		
-		line.Name = "Price line";
-		line.DrawStyle = DRAWSTYLE_LINE;
-		
-		price.Name = "Price";
-		price.SetFloat(0);
-
+        
+        line.Name = "Price line";
+        line.DrawStyle = DRAWSTYLE_LINE;
+        
+        price.Name = "Price";
+        price.SetFloat(0);
+        
         textColor.Name = "Text color";
         textColor.SetColor(COLOR_WHITE);
-
+        
         textBackgroundColor.Name = "Text background color";
         textBackgroundColor.SetColor(COLOR_BLACK);
-
+        
         fontSize.Name = "Font size";
         fontSize.SetInt(8);
         fontSize.SetIntLimits(8, 112);
-
+        
         textAlignment.Name = "Text alignment";
         textAlignment.SetCustomInputStrings("Left;Right");
         textAlignment.SetCustomInputIndex(1);
 		
-		return;
-	}
+        return;
+    }
 
-    if(sc.Index == 0) toolLineNumber = 0;
+    if(sc.Index == 0) {
+        startIndex = 0;
+        endIndex = 0;
+        toolLineNumber = 0;
+    }
+
     if(sc.IsFullRecalculation) return;
+
+    s_UseTool tool;
+    const float last = sc.BaseDataIn[SC_LAST][sc.Index];
+    const float priceDifference = last - price.GetFloat();
+    const float tickDifference = priceDifference / sc.TickSize;
+    const float currencyValue = tickDifference * sc.CurrencyValuePerTick;
+
+    tool.Clear();
+    tool.LineNumber = toolLineNumber != 0 ? toolLineNumber : -1;
 
     // Erase and redraw the horizontal line when the chart's visible area changes.
     if(startIndex != sc.IndexOfFirstVisibleBar
         || endIndex != sc.IndexOfLastVisibleBar) {
-        s_UseTool tool;
-        const float last = sc.BaseDataIn[SC_LAST][sc.Index];
-        const float priceDifference = last - price.GetFloat();
-        const float tickDifference = priceDifference / sc.TickSize;
-        const float currencyValue = tickDifference * sc.CurrencyValuePerTick;
         const int alignment = textAlignment.GetIndex() == 1 ? DT_RIGHT : DT_LEFT;
         const int beginIndex = textAlignment.GetIndex() == 1 ? sc.IndexOfLastVisibleBar : sc.IndexOfFirstVisibleBar;
 
@@ -92,8 +101,6 @@ SCSFExport scsf_HorizontalChartCalculator(SCStudyInterfaceRef sc) {
             line[i] = price.GetFloat();
         }
 
-        tool.Clear();
-        tool.LineNumber = toolLineNumber != 0 ? toolLineNumber : -1;
         tool.ChartNumber = sc.ChartNumber;
         tool.Region = sc.GraphRegion;
         tool.DrawingType = DRAWING_TEXT;
@@ -103,7 +110,6 @@ SCSFExport scsf_HorizontalChartCalculator(SCStudyInterfaceRef sc) {
         tool.FontSize = fontSize.GetInt();
         tool.Color = textColor.GetColor();
         tool.FontBackColor = textBackgroundColor.GetColor();
-        tool.Text.Format("DIT: %f CV: %f PD: %f", tickDifference, currencyValue, priceDifference);
         tool.TextAlignment = DT_BOTTOM | alignment;
         sc.UseTool(tool);
 
@@ -111,4 +117,7 @@ SCSFExport scsf_HorizontalChartCalculator(SCStudyInterfaceRef sc) {
         startIndex = sc.IndexOfFirstVisibleBar;
         endIndex = sc.IndexOfLastVisibleBar;
     }
+
+    tool.Text.Format("DIT: %f CV: %f PD: %f", tickDifference, currencyValue, priceDifference);
+    sc.UseTool(tool);
 }
