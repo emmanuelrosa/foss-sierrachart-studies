@@ -73,6 +73,7 @@ SCSFExport scsf_DataFeedDelayAlertStudy(SCStudyInterfaceRef sc) {
     SCInputRef delayThreshold = sc.Input[0];
     SCInputRef alertNumber = sc.Input[1];
     SCInputRef snoozeLength = sc.Input[2];
+    SCInputRef sessionType = sc.Input[3];
 
     int &allowAlert = sc.GetPersistentInt(0);
     int &snoozeMenuId = sc.GetPersistentInt(1);
@@ -102,6 +103,10 @@ SCSFExport scsf_DataFeedDelayAlertStudy(SCStudyInterfaceRef sc) {
         snoozeLength.Name = "Snooze length (in seconds)";
         snoozeLength.SetIntLimits(5, 600);
         snoozeLength.SetInt(120);
+
+        sessionType.Name = "Day or evening session";
+        sessionType.SetCustomInputStrings("Day session;Evening session"); 
+        sessionType.SetCustomInputIndex(0);
 
 		return;
 	}
@@ -141,9 +146,12 @@ SCSFExport scsf_DataFeedDelayAlertStudy(SCStudyInterfaceRef sc) {
 
     if(isSnoozed) return;
 
+    // Automatically disable monitoring when outside of the selected trading session.
+    const bool monitorDataFeedDelay = sessionType.GetIndex() == 0 ? sc.IsDateTimeInDaySession(sc.BaseDateTimeIn[sc.Index]) : sc.IsDateTimeInEveningSession(sc.BaseDateTimeIn[sc.Index]);
+
     bool triggerAlertTest = sc.MenuEventID == testMenuId;
 
-    if(delay[sc.Index] > delayThreshold.GetInt()) {
+    if(monitorDataFeedDelay && delay[sc.Index] > delayThreshold.GetInt()) {
         if(allowAlert) {
             SCString msg;
 
